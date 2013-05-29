@@ -1,1 +1,593 @@
-sdfsd
+<!DOCTYPE HTML>
+<html>
+<head>
+ <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta charset="utf-8">
+<link href="StyleSheet.css" rel="stylesheet" type="text/css"/>
+ <!--<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>-->
+ <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=true&libraries=places"></script>
+
+ 
+<script type="text/javascript">
+    var getcurrentlocation;
+    var marker;
+    var map;
+    var markers = new Array();
+    var directionsDisplay;
+    var distance;
+    var markersArray = [];
+    var directionsArray = [];
+    var infowindow = new google.maps.InfoWindow();
+    var geocoder = new google.maps.Geocoder();
+    var directionsService = new google.maps.DirectionsService();
+
+    window.onload = function () {
+        var index = window.localStorage.getItem("Locations:index");
+        if (!index) {
+            window.localStorage.setItem("Locations:index", index = 0);
+        }
+    }
+
+    function getLocation() {
+ 
+            if (navigator.geolocation) 
+            {
+             navigator.geolocation.watchPosition(showPosition);
+             }
+             else {
+                alert("Geolocation API is not supported in your browser.");
+            }
+    }
+     function showPosition(position) {
+     
+    
+      //  navigator.geolocation.watchPosition(function (position) {
+            directionsDisplay = new google.maps.DirectionsRenderer();
+            
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+//            var latitude = 28.611199;
+//            var longitude = 77.232599;
+            getcurrentlocation = latitude + '/' + longitude;
+            var coords = new google.maps.LatLng(latitude, longitude);
+            var mapOptions = {
+                zoom: 15,
+                center: coords,
+                mapTypeControl: true,
+                navigationControlOptions: {
+                    style: google.maps.NavigationControlStyle.SMALL
+                },
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            map = new google.maps.Map(
+                document.getElementById("mapContainer"), mapOptions
+                );
+           
+            //Start - Control Panel on the map
+            var homeControlDiv = document.createElement('div');
+            var homeControl = new HomeControl(homeControlDiv, map);
+            homeControlDiv.index = 1;
+            map.controls[google.maps.ControlPosition.LEFT_CENTER].push(homeControlDiv);
+            //End - Control Panel on the map
+
+            // Start - Info Box on the map
+            var CalcInfodiv = document.createElement('div');
+            var calcinfo = new CalcInfo(CalcInfodiv, map);
+            CalcInfodiv.index = 2;
+            map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(CalcInfodiv);
+            //End - Info Box on the map
+
+            // Start - Info Box on the map
+            var MyLocationBoxdiv = document.createElement('div');
+            var mylocationboxdiv = new MyLocationBox(MyLocationBoxdiv, map);
+            MyLocationBoxdiv.index = 3;
+            map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(MyLocationBoxdiv);
+            //End - Info Box on the map
+
+            // Start - Get Name of User location on the map
+            var UserLocationCollector = document.createElement('div');
+            var userlocationcollector = new collectuserlocationbox(UserLocationCollector, map);
+            MyLocationBoxdiv.index = 3;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(UserLocationCollector);
+            //End - Get Name of User location on the map
+
+            var image = 'Icon/you-are-here-2.png';
+
+            marker = new google.maps.Marker({
+                position: coords,
+                map: map,
+                icon: image,
+                //shadow: iconBase + 'parking_lot_maps.shadow.png',
+                title: "Your current location!",
+                draggable: false,
+                animation: google.maps.Animation.DROP
+
+            });
+           
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+            //google.maps.event.addListener(marker, 'click', toggleBounce);
+
+            google.maps.event.addListener(marker, 'click', function () {
+                GetMyLocationName();
+            });
+        //});
+
+       
+
+    }
+
+    function GetMyLocationName() {
+        var toggle = 1;
+        var infoboxcontent = '<h3>Set Parking Location</h3><table><tr><td>Name:</td><td><input type="text" id="getnote"/></td></tr></table><table><tr><td><input type="button" value="Ok" onclick="setparking()"/></td><td><input type="button" value="Cancel" onclick="closegetuserparking()"></td></tr></table>';
+        infobox(infoboxcontent, toggle);
+    }
+
+    function searchnearby(){
+         var values = getcurrentlocation;
+        values = values.split("/");
+        var currentlocation = new google.maps.LatLng(values[0], values[1]);
+     var request = {
+                location: currentlocation,
+                radius: 50000,
+                types: ['parking']
+            };
+            var service = new google.maps.places.PlacesService(map);
+            service.nearbySearch(request, callback);
+    }
+
+    function callback(results, status) {
+        if (status == google.maps.places.PlacesServiceStatus.OK) {
+            for (var i = 0; i < results.length; i++) {
+                createMarker(results[i]);
+                var address = results[0].address_components;
+                //var zipcode = address[address.length - 1].long_name;
+
+            }
+        }
+    }
+
+
+    function createMarker(place) {
+        var iconBase = 'https://maps.google.com/mapfiles/kml/shapes/';
+        var placeLoc = place.geometry.location;
+        marker2 = new google.maps.Marker({
+            icon: iconBase + 'parking_lot_maps.png',
+            shadow: iconBase + 'parking_lot_maps.shadow.png',
+            map: map,
+            position: place.geometry.location,
+            title: place.name,
+            animation: google.maps.Animation.DROP
+        });
+        var longlati = place.geometry.location;
+        var latitude = place.geometry.location.lat();
+        var longitude = place.geometry.location.lng();  
+        var newzip;
+        geocoder.geocode({ 'latLng': longlati }, function (results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+                newzip = results[0].formatted_address;
+            }
+        });
+        google.maps.event.addListener(marker2, 'click', function () {
+            var notoggle = 0;
+            map.setCenter(longlati);
+            var infoboxcontent = '<h3>Google Map Parking.</h3><table><tr><td>Name:</td><td>' + place.name + '</td></tr><tr><td>Address:</td><td>' + newzip + '</td></tr><tr><td><input type="button" value="Show path" onclick="calcRoute(' + latitude + ',' + longitude + ');"/></td><td><input type="button" value="Cancel" onclick="closegetuserparking()"></td></tr></table>';
+            infobox(infoboxcontent, notoggle);
+        });
+            markersArray.push(marker2);
+    }
+   
+    function showparking() {
+        var iconBase = 'https://maps.google.com/mapfiles/kml/shapes/';
+      
+
+        var loglenght = localStorage.length - 1;
+        for (var i = 0; i <= loglenght; i++) 
+        {
+            var index = localStorage.key(i);
+            if (index.match(/Location:/g)) 
+            {
+                var values = localStorage.getItem(index);
+                values = values.split(",");
+                var getlatilongi =values[0];
+                var note = values[1];
+                getlatilongi = getlatilongi.split("/");
+                var latitude = getlatilongi[0];
+                var longitude = getlatilongi[1];
+                var coords = new google.maps.LatLng(latitude, longitude);
+                var image = 'Icon/parking.png';
+
+                marker1 = new google.maps.Marker({
+                    position: coords,
+                    map: map,
+                    icon: image,
+                    //  shadow: iconBase + 'parking_lot_maps.shadow.png',
+                    title:note,
+                    draggable: false,
+                    animation: google.maps.Animation.DROP
+
+                });
+                var longlati = new google.maps.LatLng(latitude, longitude);
+                 var newzip;
+                geocoder.geocode({ 'latLng': longlati }, function (results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        newzip = results[0].formatted_address;
+                    }
+                });
+
+                var markersArraylength = markersArray.length;
+                markersArraylength++;
+
+               // var test = latitude + '/' + longitude;
+                var content = '</h3>Name:' + note + '<br/> Address: ' + newzip + '</h3><br/><input type="button" value="Show Path" onclick= "calcRoute(' + latitude + ',' + longitude + ')"/><input type="button" value="Delete" onclick= "DeleteItem(\'' + index + ',' + markersArraylength + '\')"/>';
+                
+                //infowindow = new google.maps.InfoWindow();
+
+                google.maps.event.addListener(marker1, 'click', (function (marker1, content, infowindow) {
+                    return function () {
+                        // infowindow.setContent(content);
+                        //   infowindow.open(map, marker1);
+                        var toggle = 1;
+                        infobox(content, toggle);
+                    };
+                })(marker1, content, infowindow));
+               
+                markersArray.push(marker1);   
+                }                      
+        }
+
+    }
+
+    function infobox(infoboxcontent, notoggle) {
+
+        var MyLocationBox = document.getElementById('MyLocationBox');
+        var checkvisible = MyLocationBox.style.display;
+        if (notoggle == 1) {
+            if (checkvisible == 'none') {
+                var ParkLocInfodiv = document.getElementById('ParkLocInfodiv');
+                MyLocationBox.style.display = "block";
+                ParkLocInfodiv.innerHTML = infoboxcontent;
+
+            }
+            if (checkvisible == 'block') {
+                MyLocationBox.style.display = "none";
+            }
+        }
+        if (notoggle == 0) {
+            var ParkLocInfodiv = document.getElementById('ParkLocInfodiv');
+            MyLocationBox.style.display = "block";
+            ParkLocInfodiv.innerHTML = infoboxcontent;
+        }
+    }
+
+    function DeleteItem(index, markersArraylength) 
+    {
+        index = index.split(",");
+        var r = confirm("Are you sure to delete?");
+        if (r == true) 
+        {
+            window.localStorage.removeItem(index[0]);
+            infowindow.close();
+            clearOverlays();
+            showparking();
+            collectuserlocation();
+//            var markerid = parseInt(index[1]);
+//            var removemarker = markersArray[markerid];
+//            markersArray[markerid].setMap(null);
+        var UserLocationCollectorbox = document.getElementById('UserLocationCollectorbox');
+       
+        // ParkLocInfodiv.setAttribute('Class', 'ParkLocInfodiv');
+            if (UserLocationCollectorbox.innerHTML == "") 
+            {
+                UserLocationCollectorbox.style.display = "none";
+            }
+        }
+        else 
+        {
+            return false;
+        }
+
+
+    }
+    
+    function setparking() {
+        
+        var index = window.localStorage.getItem("Locations:index");
+        var value = getcurrentlocation + ',' + document.getElementById('getnote').value; 
+        window.localStorage.setItem("Locations:index", ++index);
+        window.localStorage.setItem("Location:" + index, value);
+        infowindow.close();
+        closegetuserparking();
+    }
+
+    function closegetuserparking() {
+        var ParkLocInfodiv = document.getElementById('MyLocationBox');
+        var checkvisible = ParkLocInfodiv.style.display;
+        if (checkvisible == 'none') {
+            ParkLocInfodiv.style.display = "block";
+        }
+        if (checkvisible == 'block') {
+            ParkLocInfodiv.style.display = "none";
+        }
+    }
+    function enternote() {
+        var CalcInfodiv = document.getElementById('CalcInfodiv');
+        CalcInfodiv.style.visibility = "visible";
+        CalcInfodiv.style.display = "block";
+        var notemaker = "<input type='text' id='notemaker'>";
+        document.getElementById("Infodiv").innerHTML = notemaker;
+        var getnote = document.getElementById('notemaker').value;
+        getnotevalue = getnote;
+    }
+
+    function calcRoute(lat, long) {
+        closegetuserparking();
+        infowindow.close();
+         directionsDisplay.setMap(map);
+       // var start = document.getElementById("start").value;
+        //  var end = document.getElementById("end").value;
+        
+        var destinationlocation = new google.maps.LatLng(lat, long);
+        var values = getcurrentlocation;
+        values = values.split("/");
+        var currentlocation = new google.maps.LatLng(values[0], values[1]);
+        var request = {
+            origin: currentlocation,
+            destination: destinationlocation,
+            travelMode: google.maps.DirectionsTravelMode.DRIVING,
+            unitSystem: google.maps.DirectionsUnitSystem.metric
+        };
+        directionsService.route(request, function (response, status) {
+            if (status == google.maps.DirectionsStatus.OK) {
+                directionsDisplay.setDirections(response);
+                directionsArray.push(directionsDisplay);
+
+                distance = "<table style='text-align:left'><tr><td>Distance:</td><td>" + response.routes[0].legs[0].distance.text + '</td></tr><tr><td>Time:</td><td>' + response.routes[0].legs[0].duration.text + '</td></tr></table>';
+                //document.getElementById("distance_road").innerHTML = distance;
+                var CalcInfodiv = document.getElementById('CalcInfodiv');
+                
+               // CalcInfodiv.style.visibility = "visible";
+                CalcInfodiv.style.display = "block";
+                document.getElementById("Infodiv").innerHTML = distance;
+                
+            }
+            else {
+                alert("There was a problem finding directions");
+            }
+        });
+        //infowindow.close();
+       // clearOverlays();
+         for (var i = 0; i < markersArray.length; i++) {
+            markersArray[i].setMap(null);
+        }
+        markersArray = [];
+        
+    }
+
+    function clearOverlays() {
+        for (var i = 0; i < markersArray.length; i++) {
+            markersArray[i].setMap(null);
+        }
+        markersArray = [];
+        directionsDisplay.setMap(null);
+        var CalcInfodiv = document.getElementById('CalcInfodiv');    
+        CalcInfodiv.style.display = "none";
+    }
+
+    function toggleBounce() {
+        var test = marker;
+      //  var test2 = markers;
+        if (marker.getAnimation() != null) {
+            marker.setAnimation(null);
+        } else {
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+        }
+    }
+
+    function HomeControl(controlDiv, map) {
+     controlDiv.setAttribute('id', 'controlDiv');
+
+     controlDiv.setAttribute('Class', 'trasitiondivadd');
+        // Set CSS styles for the DIV containing the control
+        // Setting padding to 5 px will offset the control
+        // from the edge of the map
+      //  controlDiv.style.padding = '5px';
+
+//         Set CSS for the control border
+//        var controlUI = document.createElement('div');
+//        controlUI.style.backgroundColor = 'white';
+//        controlUI.style.borderStyle = 'solid';
+//        controlUI.style.borderWidth = '2px';
+//        controlUI.style.cursor = 'pointer';
+//        controlUI.style.textAlign = 'center';
+//        controlUI.title = 'Click here to get Current Location';
+//        controlDiv.appendChild(controlUI);
+
+        // Set CSS for the control interior
+//        var controlText = document.createElement('div');
+//        controlText.style.fontFamily = 'Arial,sans-serif';
+//        controlText.style.fontSize = '12px';
+//        controlText.style.paddingLeft = '4px';
+//        controlText.style.paddingRight = '4px';
+//        controlText.innerHTML = '<b>Current Location</b>';
+//        controlDiv.appendChild(controlText);
+     controlDiv.innerHTML = '<h4>Control Panel</h4><img id="Arrowimg" src="Icon/forward.png" alt="Smiley face" height="42" width="42" onclick="changeclass()" >';
+    
+        // Set CSS for the control interior
+     var ControlCenter = document.createElement('div');
+        ControlCenter.style.backgroundColor = 'white';
+       // ControlCenter.style.fontFamily = 'Arial,sans-serif';
+        //ControlCenter.style.fontSize = '12px';
+        ControlCenter.style.padding = "5px";
+       // ControlCenter.style.paddingLeft = '4px';
+       // ControlCenter.style.paddingRight = '4px';
+        ControlCenter.innerHTML = '<input type="button" value="My Location" onclick="collectuserlocation()"/><br/><input type="button" value="Current Position" onclick="currentposition()"><br/><input type="button" id="ParkLocation" value="Set Parking Location" onclick="GetMyLocationName()"/><br/>  <input type="button" value="My Parking" onclick="showparking()" /><br/> <input type="button" value="Clear Map" onclick="clearOverlays()"/><br/><input type="button" value="Show Parking" onclick="searchnearby()"/>';
+        controlDiv.appendChild(ControlCenter);
+
+       
+
+        // Setup the click event listeners: simply set the map to
+        // Chicago
+        google.maps.event.addDomListener(controlDiv, 'click', function () {
+
+            changeclass()
+        });
+//        google.maps.event.addDomListener(controlUI, 'mouseover', function () {
+//            controlUI.style.backgroundColor = '#e8e8e8';
+
+
+//        });
+//        google.maps.event.addDomListener(controlUI, 'mouseout', function () {
+//            controlUI.style.backgroundColor = 'white';
+//        });
+    }
+    function currentposition(){
+        var values = getcurrentlocation;
+        values = values.split("/");
+        var currentlocation = new google.maps.LatLng(values[0], values[1]);
+        map.setCenter(currentlocation)
+    
+    }
+    function CalcInfo(CalcInfodiv, map) {
+        CalcInfodiv.setAttribute('id', 'CalcInfodiv');
+        //CalcInfodiv.style.padding = '15px';
+       // CalcInfodiv.style.visibility = "hidden";
+        CalcInfodiv.style.display = "none";
+        //CalcInfodiv.style.visibility = "hidden"
+        //Set div to show distatnance and other information
+        var Infodiv = document.createElement('div');
+        Infodiv.setAttribute('id', 'Infodiv');
+        //Infodiv.style.backgroundColor = 'white';
+       // Infodiv.style.borderStyle = 'solid';
+       // Infodiv.style.padding = '5px';
+       // Infodiv.style.borderWidth = '2px';
+       // Infodiv.style.cursor = 'pointer';
+       // Infodiv.style.textAlign = 'center';
+        //Infodiv.innerHTML = '';
+        Infodiv.title = 'Current Location';
+        CalcInfodiv.appendChild(Infodiv);
+
+        google.maps.event.addDomListener(Infodiv, 'click', function () {
+
+           
+        });
+    }
+
+    function MyLocationBox(MyLocationBox, map) {
+       
+        MyLocationBox.setAttribute('id', 'MyLocationBox');
+        //CalcInfodiv.style.padding = '15px';
+       // MyLocationBox.style.visibility = "hidden";
+        MyLocationBox.style.display = "none";
+        
+        //Set div to show distatnance and other information
+        var ParkLocInfo = document.createElement('div');
+        ParkLocInfo.setAttribute('id', 'ParkLocInfodiv');
+        MyLocationBox.appendChild(ParkLocInfo);
+
+        google.maps.event.addDomListener(ParkLocInfo, 'click', function () {
+                 
+        });
+    }
+
+
+    function changeclass() {
+        var getdiv = document.getElementById('controlDiv');
+        var getclass = getdiv.className;
+        if (getclass == 'trasitiondivadd') {
+            getdiv.setAttribute('class', 'trasitiondivremove');
+
+        }
+        if (getclass == 'trasitiondivremove') {
+            getdiv.setAttribute('class', 'trasitiondivadd');
+        }
+    }
+
+
+    function collectuserlocation() {
+        var UserLocationCollectorbox = document.getElementById('UserLocationCollectorbox');
+        UserLocationCollectorbox.innerHTML = "";
+        var loglenght = localStorage.length - 1;
+
+        for (var i = 0; i <= loglenght; i++) {
+            var index = localStorage.key(i);
+
+            if (index.match(/Location:/g)) {
+                var values = localStorage.getItem(index);
+                values = values.split(",");
+                var getlatilongi = values[0];
+                var note = values[1];
+                getlatilongi = getlatilongi.split("/");
+                var latitude = getlatilongi[0];
+                var longitude = getlatilongi[1];
+                var coords = new google.maps.LatLng(latitude, longitude);
+
+                collectuserlocationtoggle();
+                UserLocationCollectorbox.innerHTML += '<input type="button" value=' + note + ' onclick="UserSetLocCenter(' + latitude +','+longitude+ ')"/><br/>';
+           }
+        }
+    }
+
+    function collectuserlocationtoggle() {
+        var UserLocationCollectorbox = document.getElementById('UserLocationCollectorbox');
+        var checkvisible = UserLocationCollectorbox.style.display;
+        // ParkLocInfodiv.setAttribute('Class', 'ParkLocInfodiv');
+        if (checkvisible == 'none') {      
+            UserLocationCollectorbox.style.display = "block";
+            ParkLocInfodiv.innerHTML = '<h3>Set Parking Location</h3><table><tr><td>Name:</td><td><input type="text" id="getnote"/></td></tr><tr><td><input type="button" value="Ok" onclick="setparking()"/></td><td><input type="button" value="Cancel" onclick="closegetuserparking()"></td></tr></table>';
+        }
+        if (checkvisible == 'block') {
+            UserLocationCollectorbox.style.display = "none";
+        }
+    }
+
+function UserSetLocCenter(lat, long) {
+    showparking();
+    var destinationlocation = new google.maps.LatLng(lat, long);
+    map.setCenter(destinationlocation);
+
+}
+function collectuserlocationbox(UserLocationCollector, map) {
+
+    UserLocationCollector.setAttribute('id', 'UserLocationCollectorbox');
+    //CalcInfodiv.style.padding = '15px';
+    // MyLocationBox.style.visibility = "hidden";
+    UserLocationCollector.style.display = "none";
+//Set div to show distatnance and other information
+//    var ParkLocInfo = document.createElement('div');
+//    ParkLocInfo.setAttribute('id', 'ParkLocInfodiv');
+//    MyLocationBox.appendChild(ParkLocInfo);
+
+    google.maps.event.addDomListener(UserLocationCollector, 'click', function () {
+
+    });
+}
+
+</script>
+<style type="text/css">
+ html, body, #mapContainer {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width:100%;
+      }
+button{padding:5px;}
+</style>
+</head>
+<body onload="getLocation()">
+
+  <!--<input type="button" id="ParkLocation" value="Set Parking Location" onclick="setparking()"/>
+  <input type="button" value="My Parking" onclick="showparking()" />-->
+  <!--<input type="button" value="calcRoute" onclick="calcRoute()" />-->
+  <div id="mapContainer" ></div>
+  <!--<div style="width:100%; height:10%" id="distance_road"></div></center>
+    
+   <div id="Div1" style="height:300px; width:450px";></div>
+     <div id="Parkingcontainer"></div>
+    <div id="MyControl">-->
+     
+ 
+
+
+</body>
+</html>
